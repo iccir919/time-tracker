@@ -1,5 +1,6 @@
 // Statistics calculation utilities
 import { generateTimeSeriesData } from './chartUtils';
+import { generateMultiLineData, getColorForEventType } from './multiLineChartUtils';
 
 export const calculateStats = (eventList, timeRange) => {
   let totalMinutes = 0;
@@ -27,6 +28,12 @@ export const calculateStats = (eventList, timeRange) => {
   const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
   const avgHoursPerDay = Math.round((totalHours / Object.keys(eventsByDay).length) * 10) / 10 || 0;
 
+  // Generate multi-line chart data
+  const multiLineResult = generateMultiLineData(eventList, timeRange);
+  const colors = multiLineResult.eventTypes.map((eventType, index) => 
+    getColorForEventType(eventType, index)
+  );
+
   return {
     totalHours,
     avgHoursPerDay,
@@ -38,6 +45,9 @@ export const calculateStats = (eventList, timeRange) => {
       }))
       .sort((a, b) => b.hours - a.hours)
       .slice(0, 10),
-    timeSeriesData: generateTimeSeriesData(eventList, timeRange)
+    timeSeriesData: generateTimeSeriesData(eventList, timeRange),
+    multiLineData: multiLineResult.data,
+    eventTypes: multiLineResult.eventTypes,
+    eventColors: colors
   };
 };

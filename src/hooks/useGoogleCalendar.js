@@ -12,6 +12,7 @@ export const useGoogleCalendar = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('week');
+  const [customDateRange, setCustomDateRange] = useState(null);
 
   // Initialize Google API on mount
   useEffect(() => {
@@ -41,7 +42,7 @@ export const useGoogleCalendar = () => {
     if (isSignedIn && selectedCalendarId) {
       fetchEvents();
     }
-  }, [isSignedIn, timeRange, selectedCalendarId]);
+  }, [isSignedIn, timeRange, customDateRange, selectedCalendarId]);
 
   const fetchCalendarList = async () => {
     try {
@@ -66,7 +67,17 @@ export const useGoogleCalendar = () => {
     setError(null);
     
     try {
-      const { timeMin, timeMax } = getDateRange(timeRange);
+      let timeMin, timeMax;
+      
+      // Use custom date range if set, otherwise use preset range
+      if (timeRange === 'custom' && customDateRange) {
+        timeMin = customDateRange.timeMin;
+        timeMax = customDateRange.timeMax;
+      } else {
+        const range = getDateRange(timeRange);
+        timeMin = range.timeMin;
+        timeMax = range.timeMax;
+      }
       
       const fetchedEvents = await googleCalendarService.fetchEvents(
         timeMin, 
@@ -102,6 +113,11 @@ export const useGoogleCalendar = () => {
     setStats(null);
   };
 
+  const applyCustomDateRange = (dateRange) => {
+    setCustomDateRange(dateRange);
+    setTimeRange('custom');
+  };
+
   return {
     isSignedIn,
     calendars,
@@ -112,7 +128,9 @@ export const useGoogleCalendar = () => {
     loading,
     error,
     timeRange,
+    customDateRange,
     setTimeRange,
+    applyCustomDateRange,
     handleSignIn,
     handleSignOut,
     refetchEvents: fetchEvents

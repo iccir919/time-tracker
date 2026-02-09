@@ -51,7 +51,11 @@ export const generateTimeSeriesData = (eventList, timeRange) => {
   return sortedData;
 };
 
-export const getGraphTitle = (timeRange) => {
+export const getGraphTitle = (timeRange, customLabel) => {
+  if (timeRange === 'custom' && customLabel) {
+    return `Hours: ${customLabel}`;
+  }
+  
   switch(timeRange) {
     case 'week':
       return 'Daily Hours - Past Week';
