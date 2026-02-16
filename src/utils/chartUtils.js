@@ -45,7 +45,7 @@ export const generateTimeSeriesData = (eventList, timeRange) => {
     .sort((a, b) => a.timestamp - b.timestamp)
     .map(point => ({
       date: point.date,
-      hours: Math.round(point.hours * 10) / 10
+      hours: point.hours  // Keep full precision
     }));
   
   return sortedData;

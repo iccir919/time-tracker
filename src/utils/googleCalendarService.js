@@ -5,6 +5,7 @@ class GoogleCalendarService {
     this.isInitialized = false;
     this.accessToken = null;
     this.tokenClient = null;
+    this.tokenExpiresAt = null;
   }
 
   // Initialize Google API
@@ -24,6 +25,10 @@ class GoogleCalendarService {
           await this.initializeGapi();
           this.initializeGis();
           this.isInitialized = true;
+          
+          // Try to restore saved session
+          this.restoreSession();
+          
           resolve();
         };
         gapiScript.onerror = () => reject(new Error('Failed to load GAPI'));
@@ -62,9 +67,17 @@ class GoogleCalendarService {
           console.error('Token error:', response);
           return;
         }
+        
+        // Store token and expiration
         this.accessToken = response.access_token;
+        this.tokenExpiresAt = Date.now() + (response.expires_in * 1000);
+        
+        // Persist to localStorage
+        this.saveSession();
+        
         // Set the token for GAPI client
         window.gapi.client.setToken({ access_token: this.accessToken });
+        
         // Trigger any pending callbacks
         if (this.signInCallback) {
           this.signInCallback(true);
@@ -73,17 +86,78 @@ class GoogleCalendarService {
     });
   }
 
+  // Save session to localStorage
+  saveSession() {
+    try {
+      localStorage.setItem('google_access_token', this.accessToken);
+      localStorage.setItem('google_token_expires_at', this.tokenExpiresAt.toString());
+    } catch (error) {
+      console.error('Failed to save session:', error);
+    }
+  }
+
+  // Restore session from localStorage
+  restoreSession() {
+    try {
+      const savedToken = localStorage.getItem('google_access_token');
+      const savedExpiry = localStorage.getItem('google_token_expires_at');
+      
+      if (savedToken && savedExpiry) {
+        const expiresAt = parseInt(savedExpiry, 10);
+        
+        // Check if token is still valid (with 5 min buffer)
+        if (Date.now() < expiresAt - (5 * 60 * 1000)) {
+          this.accessToken = savedToken;
+          this.tokenExpiresAt = expiresAt;
+          
+          // Set the token for GAPI client
+          window.gapi.client.setToken({ access_token: this.accessToken });
+          
+          console.log('Session restored from localStorage');
+          
+          // Trigger callback if app is waiting for sign in state
+          if (this.signInCallback) {
+            this.signInCallback(true);
+          }
+          
+          return true;
+        } else {
+          // Token expired, clear it
+          this.clearSession();
+          console.log('Saved token expired');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore session:', error);
+    }
+    return false;
+  }
+
+  // Clear session from localStorage
+  clearSession() {
+    try {
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_token_expires_at');
+    } catch (error) {
+      console.error('Failed to clear session:', error);
+    }
+  }
+
   // Check if user is signed in
   isSignedIn() {
-    return this.accessToken !== null;
+    // Check if token exists and is not expired
+    if (this.accessToken && this.tokenExpiresAt) {
+      return Date.now() < this.tokenExpiresAt;
+    }
+    return false;
   }
 
   // Sign in
   signIn() {
     return new Promise((resolve) => {
       this.signInCallback = resolve;
-      // Request access token
-      this.tokenClient.requestAccessToken({ prompt: 'consent' });
+      // Request access token (only prompt if needed)
+      this.tokenClient.requestAccessToken({ prompt: '' });
     });
   }
 
@@ -94,25 +168,25 @@ class GoogleCalendarService {
         console.log('Access token revoked');
       });
       this.accessToken = null;
+      this.tokenExpiresAt = null;
       window.gapi.client.setToken(null);
+      
+      // Clear from localStorage
+      this.clearSession();
     }
   }
 
-  // Listen to sign-in state changes
-  listenToSignInChanges(callback) {
-    // Store callback for when token changes
-    this.stateChangeCallback = callback;
-  }
-
-  // Fetch list of user's calendars
+  // Fetch calendar list
   async fetchCalendarList() {
+    if (!this.isSignedIn()) {
+      throw new Error('Not signed in');
+    }
+
     try {
-      const response = await window.gapi.client.calendar.calendarList.list({
-        minAccessRole: 'reader',
-        showHidden: false,
-      });
+      const response = await window.gapi.client.calendar.calendarList.list();
       
-      return (response.result.items || []).map(cal => ({
+      // Format the calendar data
+      return response.result.items.map(cal => ({
         id: cal.id,
         name: cal.summary,
         primary: cal.primary || false,
@@ -120,35 +194,41 @@ class GoogleCalendarService {
         foregroundColor: cal.foregroundColor,
       }));
     } catch (error) {
-      console.error('Calendar list error:', error);
-      
-      // Fallback: If calendar list fails, return primary calendar
+      console.error('Error fetching calendar list:', error);
+      // Fallback to primary calendar if list fetch fails
       return [{
         id: 'primary',
         name: 'Primary Calendar',
         primary: true,
-        backgroundColor: '#4285f4',
-        foregroundColor: '#ffffff',
       }];
     }
   }
 
-  // Fetch calendar events from specific calendar
+  // Fetch events from calendar
   async fetchEvents(timeMin, timeMax, calendarId = 'primary') {
+    if (!this.isSignedIn()) {
+      throw new Error('Not signed in');
+    }
+
     try {
       const response = await window.gapi.client.calendar.events.list({
         calendarId: calendarId,
         timeMin: timeMin,
         timeMax: timeMax,
+        showDeleted: false,
         singleEvents: true,
+        maxResults: 2500,
         orderBy: 'startTime',
-        maxResults: 2500
       });
+
       return response.result.items || [];
     } catch (error) {
-      throw new Error('Failed to fetch calendar events');
+      console.error('Error fetching events:', error);
+      throw error;
     }
   }
 }
 
-export const googleCalendarService = new GoogleCalendarService();
+// Create and export singleton instance
+const googleCalendarService = new GoogleCalendarService();
+export { googleCalendarService };

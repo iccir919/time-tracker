@@ -7,7 +7,6 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
-  Legend,
   LineChart,
   Line,
   BarChart,
@@ -21,11 +20,14 @@ const CustomTooltip = ({ active, payload, label, isStacked }) => {
       ? payload.reduce((sum, entry) => sum + (entry.value || 0), 0)
       : null;
     
+    // Parse date and add day of week
+    const labelWithDay = label; // Will be enhanced below
+    
     return (
       <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
-        <p className="text-sm font-semibold text-gray-900 mb-2">{label}</p>
+        <p className="text-sm font-semibold text-gray-900 mb-2">{labelWithDay}</p>
         {isStacked && (
-          <p className="text-sm font-bold text-indigo-600 mb-2 pb-2 border-b border-gray-200">
+          <p className="text-sm font-bold text-gray-900 mb-2 pb-2 border-b border-gray-200">
             Total: {Math.round(total * 10) / 10}h
           </p>
         )}
@@ -106,12 +108,6 @@ const TimeSeriesChart = ({ data, eventTypes, colors, title, chartStyle = 'stacke
             }}
           />
           <Tooltip content={<CustomTooltip isStacked={isStacked} />} />
-          {eventTypes && eventTypes.length > 0 && (
-            <Legend 
-              wrapperStyle={{ paddingTop: '20px' }}
-              iconType={isBar ? 'square' : (isStacked ? 'square' : 'line')}
-            />
-          )}
           
           {/* Render based on chart type and style */}
           {isBar ? (
@@ -151,16 +147,17 @@ const TimeSeriesChart = ({ data, eventTypes, colors, title, chartStyle = 'stacke
                 dot={{ fill: colors[index], strokeWidth: 2, r: 4 }}
                 activeDot={{ r: 6, fill: colors[index] }}
                 name={eventType}
+                connectNulls={false}
               />
             ))
           )}
         </ChartComponent>
       </ResponsiveContainer>
 
-      {/* Note about top 5 */}
+      {/* Note about top 10 */}
       {eventTypes && eventTypes.includes('Other') && (
         <p className="text-xs text-gray-500 text-center mt-4">
-          💡 Showing top 5 event types. Remaining events grouped as "Other"
+          💡 Showing top 10 event types. Remaining events grouped as "Other"
         </p>
       )}
     </div>

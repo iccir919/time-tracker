@@ -5,6 +5,7 @@ import Header from './components/Header';
 import CalendarSelector from './components/CalendarSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import DateRangePicker from './components/DateRangePicker';
+import DateRangeDisplay from './components/DateRangeDisplay';
 import ChartTypeToggle from './components/ChartTypeToggle';
 import ComparisonStats from './components/ComparisonStats';
 import TimeSeriesChart from './components/TimeSeriesChart';
@@ -37,8 +38,8 @@ const App = () => {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [chartStyle, setChartStyle] = useState('stacked');
-  const [chartType, setChartType] = useState('line');
-  const [comparisonMode, setComparisonMode] = useState('none');
+  const [chartType, setChartType] = useState('bar');
+  const [comparisonMode, setComparisonMode] = useState('previous');
   const [comparisonStats, setComparisonStats] = useState(null);
   const [selectedEventType, setSelectedEventType] = useState(null);
   const [filteredStats, setFilteredStats] = useState(null);
@@ -46,12 +47,12 @@ const App = () => {
   // Fetch comparison data when comparison mode changes
   useEffect(() => {
     const fetchComparisonData = async () => {
-      if (comparisonMode === 'none' || !isSignedIn) {
+      if (!isSignedIn) {
         setComparisonStats(null);
         return;
       }
 
-      const comparisonRange = getComparisonDateRange(timeRange, comparisonMode);
+      const comparisonRange = getComparisonDateRange(timeRange, comparisonMode, customDateRange);
       if (!comparisonRange) {
         setComparisonStats(null);
         return;
@@ -72,7 +73,7 @@ const App = () => {
     };
 
     fetchComparisonData();
-  }, [comparisonMode, timeRange, isSignedIn, selectedCalendarId]);
+  }, [comparisonMode, timeRange, isSignedIn, selectedCalendarId, customDateRange]);
 
   // Filter events and recalculate stats when event type is selected
   useEffect(() => {
@@ -88,6 +89,13 @@ const App = () => {
 
     const filtered = filterEventsByType(events, selectedEventType);
     const newStats = calculateStats(filtered, timeRange);
+    
+    // Preserve the original color for the selected event
+    const originalEventIndex = stats.eventTypes.indexOf(selectedEventType);
+    if (originalEventIndex !== -1) {
+      newStats.eventColors = [stats.eventColors[originalEventIndex]];
+    }
+    
     setFilteredStats(newStats);
   }, [selectedEventType, events, stats, timeRange]);
 
@@ -97,7 +105,7 @@ const App = () => {
 
   const handleApplyCustomRange = (dateRange) => {
     applyCustomDateRange(dateRange);
-    setComparisonMode('none'); // Reset comparison when custom range is selected
+    // Comparison will be hidden for custom ranges automatically
   };
 
   const handleEventClick = (eventType) => {
@@ -112,7 +120,7 @@ const App = () => {
   const hasEvents = events && events.length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
           <Header onSignOut={handleSignOut} />
@@ -127,17 +135,13 @@ const App = () => {
           <TimeRangeSelector 
             timeRange={timeRange} 
             onChange={setTimeRange}
-            onCustomClick={handleCustomClick}
           />
 
-          {/* Show custom date range label if active */}
-          {timeRange === 'custom' && customDateRange && (
-            <div className="mb-6 text-center">
-              <span className="inline-block bg-indigo-100 text-indigo-700 px-4 py-2 rounded-lg text-sm font-medium">
-                📅 {customDateRange.label}
-              </span>
-            </div>
-          )}
+          <DateRangeDisplay 
+            timeRange={timeRange}
+            customDateRange={customDateRange}
+            onCustomClick={handleCustomClick}
+          />
 
           <ErrorMessage message={error} />
 
@@ -149,13 +153,17 @@ const App = () => {
 
           {!loading && hasEvents && displayStats && (
             <>
-              <ChartTypeToggle 
-                chartStyle={chartStyle}
-                chartType={chartType}
-                onStyleChange={setChartStyle}
-                onTypeChange={setChartType}
+              {/* Events breakdown ABOVE chart */}
+              <EventsBreakdown 
+                eventsByType={stats.eventsByType}
+                totalHours={stats.totalHours}
+                onEventClick={handleEventClick}
+                selectedEvent={selectedEventType}
+                eventColors={stats.eventColors}
+                eventTypes={stats.eventTypes}
               />
               
+              {/* Chart */}
               <TimeSeriesChart 
                 data={displayStats.multiLineData}
                 eventTypes={displayStats.eventTypes}
@@ -164,15 +172,16 @@ const App = () => {
                 chartStyle={chartStyle}
                 chartType={chartType}
               />
-              
-              <EventsBreakdown 
-                eventsByType={stats.eventsByType}
-                totalHours={stats.totalHours}
-                onEventClick={handleEventClick}
-                selectedEvent={selectedEventType}
+
+              {/* Chart controls BELOW chart */}
+              <ChartTypeToggle 
+                chartStyle={chartStyle}
+                chartType={chartType}
+                onStyleChange={setChartStyle}
+                onTypeChange={setChartType}
               />
 
-              {/* Comparison section at the bottom (always shown for easy access) */}
+              {/* Comparison at the bottom */}
               <ComparisonStats
                 currentStats={stats}
                 comparisonStats={comparisonStats}
@@ -180,6 +189,7 @@ const App = () => {
                 comparisonMode={comparisonMode}
                 onComparisonChange={setComparisonMode}
                 timeRange={timeRange}
+                customDateRange={customDateRange}
               />
             </>
           )}

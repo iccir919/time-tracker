@@ -9,6 +9,9 @@ const CalendarSelector = ({ calendars, selectedCalendarId, onChange, loading }) 
   if (calendars.length === 1) {
     return (
       <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Selected Calendar
+        </label>
         <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-lg border border-gray-200">
           <span className="text-lg">📅</span>
           <span className="text-sm font-medium text-gray-700">{calendars[0].name}</span>
@@ -21,12 +24,15 @@ const CalendarSelector = ({ calendars, selectedCalendarId, onChange, loading }) 
 
   return (
     <div className="mb-6">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Selected Calendar
+      </label>
       <div className="relative">
         <select
           value={selectedCalendarId}
           onChange={(e) => onChange(e.target.value)}
           disabled={loading}
-          className="w-full pl-10 pr-10 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-300 transition-colors"
+          className="w-full pl-10 pr-10 py-3 bg-white border-2 border-gray-200 rounded-xl font-medium text-gray-900 focus:ring-2 focus:ring-gray-900 focus:border-gray-900 appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:border-gray-300 transition-colors"
         >
           {calendars.map((calendar) => (
             <option key={calendar.id} value={calendar.id}>

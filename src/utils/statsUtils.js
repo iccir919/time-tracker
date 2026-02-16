@@ -25,8 +25,8 @@ export const calculateStats = (eventList, timeRange) => {
     }
   });
 
-  const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
-  const avgHoursPerDay = Math.round((totalHours / Object.keys(eventsByDay).length) * 10) / 10 || 0;
+  const totalHours = totalMinutes / 60;
+  const avgHoursPerDay = (totalHours / Object.keys(eventsByDay).length) || 0;
 
   // Generate multi-line chart data
   const multiLineResult = generateMultiLineData(eventList, timeRange);
@@ -41,10 +41,10 @@ export const calculateStats = (eventList, timeRange) => {
     eventsByType: Object.entries(eventsByType)
       .map(([name, minutes]) => ({
         name,
-        hours: Math.round((minutes / 60) * 10) / 10
+        hours: minutes / 60  // Keep full precision, don't round here
       }))
       .sort((a, b) => b.hours - a.hours)
-      .slice(0, 10),
+      .slice(0, 10), // Limit to top 10 events
     timeSeriesData: generateTimeSeriesData(eventList, timeRange),
     multiLineData: multiLineResult.data,
     eventTypes: multiLineResult.eventTypes,

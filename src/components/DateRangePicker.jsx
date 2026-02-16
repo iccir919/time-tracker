@@ -6,8 +6,9 @@ const DateRangePicker = ({ onApply, onClose }) => {
 
   const handleApply = () => {
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      // Create dates in local timezone at start of day
+      const start = new Date(startDate + 'T00:00:00');
+      const end = new Date(endDate + 'T23:59:59');
       
       // Validate dates
       if (start > end) {
@@ -15,13 +16,10 @@ const DateRangePicker = ({ onApply, onClose }) => {
         return;
       }
       
-      // Set end date to end of day
-      end.setHours(23, 59, 59, 999);
-      
       onApply({
         timeMin: start.toISOString(),
         timeMax: end.toISOString(),
-        label: `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`
+        label: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
       });
       onClose();
     }
@@ -90,7 +88,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
           <div>
@@ -101,7 +99,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
         </div>
@@ -117,7 +115,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
           <button
             onClick={handleApply}
             disabled={!startDate || !endDate}
-            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold hover:bg-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Apply
           </button>

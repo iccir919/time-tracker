@@ -1,5 +1,5 @@
 // Get comparison date range based on current range and comparison mode
-export const getComparisonDateRange = (timeRange, comparisonMode) => {
+export const getComparisonDateRange = (timeRange, comparisonMode, customDateRange = null) => {
   const now = new Date();
   
   if (comparisonMode === 'none' || !comparisonMode) {
@@ -8,7 +8,26 @@ export const getComparisonDateRange = (timeRange, comparisonMode) => {
 
   let timeMin, timeMax;
 
-  if (timeRange === 'week') {
+  // Handle custom date ranges
+  if (timeRange === 'custom' && customDateRange) {
+    const customStart = new Date(customDateRange.timeMin);
+    const customEnd = new Date(customDateRange.timeMax);
+    const durationMs = customEnd - customStart;
+    
+    if (comparisonMode === 'previous') {
+      // Previous period (same length as custom range)
+      timeMax = new Date(customStart);
+      timeMax.setMilliseconds(timeMax.getMilliseconds() - 1); // End just before custom start
+      timeMin = new Date(timeMax);
+      timeMin.setMilliseconds(timeMin.getMilliseconds() - durationMs); // Go back by duration
+    } else if (comparisonMode === 'year-ago') {
+      // Same period last year
+      timeMin = new Date(customStart);
+      timeMin.setFullYear(timeMin.getFullYear() - 1);
+      timeMax = new Date(customEnd);
+      timeMax.setFullYear(timeMax.getFullYear() - 1);
+    }
+  } else if (timeRange === 'week') {
     if (comparisonMode === 'previous') {
       // Previous week
       timeMin = new Date();
@@ -63,7 +82,9 @@ export const getComparisonLabel = (timeRange, comparisonMode) => {
     return null;
   }
 
-  if (timeRange === 'week') {
+  if (timeRange === 'custom') {
+    return comparisonMode === 'previous' ? 'previous period' : 'same period last year';
+  } else if (timeRange === 'week') {
     return comparisonMode === 'previous' ? 'last week' : 'same week last year';
   } else if (timeRange === 'month') {
     return comparisonMode === 'previous' ? 'last month' : 'same month last year';
