@@ -1,6 +1,6 @@
 import React from 'react';
 
-const EventsBreakdown = ({ eventsByType, totalHours, onEventClick, selectedEvent, eventColors, eventTypes }) => {
+const EventsBreakdown = ({ eventsByType, totalHours, onEventClick, selectedEvent, eventColors, eventTypes, title = "Events Breakdown", isComparison = false, avgHoursPerDay, eventCount }) => {
   if (!eventsByType || eventsByType.length === 0) {
     return null;
   }
@@ -14,13 +14,13 @@ const EventsBreakdown = ({ eventsByType, totalHours, onEventClick, selectedEvent
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <span className="text-2xl">📋</span>
-          <h2 className="text-xl font-bold text-gray-900">Events Breakdown</h2>
+          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
         </div>
-        {selectedEvent && (
+        {selectedEvent && !isComparison && (
           <button
             onClick={() => onEventClick(null)}
             className="text-sm text-gray-900 hover:text-black font-medium"
@@ -28,6 +28,28 @@ const EventsBreakdown = ({ eventsByType, totalHours, onEventClick, selectedEvent
             Clear Filter ✕
           </button>
         )}
+      </div>
+
+      {/* Stats Summary */}
+      <div className="grid grid-cols-3 gap-3 mb-6 pb-4 border-b border-gray-200">
+        <div className="text-center">
+          <p className="text-xs text-gray-600 mb-1">Total</p>
+          <p className="text-lg font-bold text-gray-900">
+            {parseFloat(totalHours.toFixed(1))}h
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-600 mb-1">Avg/Day</p>
+          <p className="text-lg font-bold text-gray-900">
+            {parseFloat(avgHoursPerDay.toFixed(1))}h
+          </p>
+        </div>
+        <div className="text-center">
+          <p className="text-xs text-gray-600 mb-1">Events</p>
+          <p className="text-lg font-bold text-gray-900">
+            {eventCount}
+          </p>
+        </div>
       </div>
 
       <div className="space-y-3">

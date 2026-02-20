@@ -13,6 +13,7 @@ export const useGoogleCalendar = () => {
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('week');
   const [customDateRange, setCustomDateRange] = useState(null);
+  const [currentDateRange, setCurrentDateRange] = useState(null); // Store the actual min/max dates
 
   // Initialize Google API on mount
   useEffect(() => {
@@ -84,8 +85,12 @@ export const useGoogleCalendar = () => {
         timeMax, 
         selectedCalendarId
       );
+      
+      // Store the actual date range used
+      setCurrentDateRange({ timeMin, timeMax });
+      
       setEvents(fetchedEvents);
-      setStats(calculateStats(fetchedEvents, timeRange));
+      setStats(calculateStats(fetchedEvents, timeRange, 'days', timeMin, timeMax));
     } catch (err) {
       setError('Failed to fetch calendar events. Please try again.');
       console.error(err);
@@ -129,6 +134,7 @@ export const useGoogleCalendar = () => {
     error,
     timeRange,
     customDateRange,
+    currentDateRange,
     setTimeRange,
     applyCustomDateRange,
     handleSignIn,

@@ -1,38 +1,10 @@
 import React from 'react';
 
-const ComparisonStats = ({ currentStats, comparisonStats, comparisonLabel, comparisonMode, onComparisonChange, timeRange, customDateRange }) => {
+const ComparisonStats = ({ currentStats, comparisonStats, comparisonLabel, comparisonMode, timeRange, customDateRange }) => {
   // Always show the component if we have current stats
   if (!currentStats) {
     return null;
   }
-
-  // Get available comparison options based on current time range
-  const getComparisonOptions = () => {
-    switch (timeRange) {
-      case 'week':
-        return [
-          { value: 'previous', label: 'Last Week', icon: '←' },
-          { value: 'year-ago', label: 'Year Ago', icon: '📅' }
-        ];
-      case 'month':
-        return [
-          { value: 'previous', label: 'Last Month', icon: '←' },
-          { value: 'year-ago', label: 'Year Ago', icon: '📅' }
-        ];
-      case 'year':
-        return [
-          { value: 'previous', label: 'Last Year', icon: '←' }
-        ];
-      case 'custom':
-        // For custom ranges, allow comparison to previous period or year ago
-        return [
-          { value: 'previous', label: 'Previous Period', icon: '←' },
-          { value: 'year-ago', label: 'Year Ago', icon: '📅' }
-        ];
-      default:
-        return [{ value: 'previous', label: 'Previous Period', icon: '←' }];
-    }
-  };
 
   // Get the exact date range for comparison periods
   const getComparisonDateRangeText = () => {
@@ -101,8 +73,6 @@ const ComparisonStats = ({ currentStats, comparisonStats, comparisonLabel, compa
     
     return `${formatDate(startDate)} - ${formatDate(endDate)}`;
   };
-
-  const options = getComparisonOptions();
 
   // Create comparison data only if we have comparisonStats
   let eventComparisons = [];
@@ -194,28 +164,10 @@ const ComparisonStats = ({ currentStats, comparisonStats, comparisonLabel, compa
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-6 mt-8">
-      {/* Comparison selector buttons at top - ALWAYS SHOWN */}
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Compare To
-        </label>
-        <div className="flex gap-2">
-          {options.map(option => (
-            <button
-              key={option.value}
-              onClick={() => onComparisonChange(option.value)}
-              className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all ${
-                comparisonMode === option.value
-                  ? 'bg-gray-900 text-white shadow-md'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              <span className="mr-1.5">{option.icon}</span>
-              {option.label}
-            </button>
-          ))}
-        </div>
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200 p-6 mt-6">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-2xl">📊</span>
+        <h2 className="text-xl font-bold text-gray-900">Change from Previous Period</h2>
       </div>
 
       {/* Show exact date range for comparison period */}
@@ -230,12 +182,7 @@ const ComparisonStats = ({ currentStats, comparisonStats, comparisonLabel, compa
       {/* Only show comparison data if we have data */}
       {eventComparisons.length > 0 && (
         <>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-xl">📊</span>
-            <h3 className="text-lg font-bold text-gray-900">Event Comparison</h3>
-          </div>
-          
-          <div className="space-y-2">
+          <div className="space-y-2 mt-4">
             {eventComparisons.map((item, index) => (
               <div 
                 key={index}

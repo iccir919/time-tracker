@@ -2,7 +2,8 @@
 import { generateTimeSeriesData } from './chartUtils';
 import { generateMultiLineData, getColorForEventType } from './multiLineChartUtils';
 
-export const calculateStats = (eventList, timeRange) => {
+export const calculateStats = (eventList, timeRange, groupBy = 'days', dateMin = null, dateMax = null) => {
+  // Note: groupBy parameter added for Phase 3, currently always uses days
   let totalMinutes = 0;
   const eventsByDay = {};
   const eventsByType = {};
@@ -29,7 +30,7 @@ export const calculateStats = (eventList, timeRange) => {
   const avgHoursPerDay = (totalHours / Object.keys(eventsByDay).length) || 0;
 
   // Generate multi-line chart data
-  const multiLineResult = generateMultiLineData(eventList, timeRange);
+  const multiLineResult = generateMultiLineData(eventList, timeRange, dateMin, dateMax);
   const colors = multiLineResult.eventTypes.map((eventType, index) => 
     getColorForEventType(eventType, index)
   );

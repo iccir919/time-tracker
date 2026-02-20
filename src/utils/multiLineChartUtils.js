@@ -1,5 +1,5 @@
 // Generate time series data with separate lines for each event type (top 5 + Other)
-export const generateMultiLineData = (eventList, timeRange) => {
+export const generateMultiLineData = (eventList, timeRange, dateMin = null, dateMax = null) => {
   const dataByDateAndType = {};
   const eventTypeTotals = {};
   
@@ -62,13 +62,21 @@ export const generateMultiLineData = (eventList, timeRange) => {
   });
   
   // Fill in missing days/months for continuous timeline
-  const fillMissingDates = (data, range) => {
-    if (Object.keys(data).length === 0) return data;
+  const fillMissingDates = (data, range, minDate = null, maxDate = null) => {
+    if (Object.keys(data).length === 0 && !minDate && !maxDate) return data;
     
-    // Get min and max timestamps
-    const timestamps = Object.values(data).map(d => d.timestamp);
-    const minTimestamp = Math.min(...timestamps);
-    const maxTimestamp = Math.max(...timestamps);
+    let minTimestamp, maxTimestamp;
+    
+    // Use provided date range if available, otherwise use data min/max
+    if (minDate && maxDate) {
+      minTimestamp = new Date(minDate).getTime();
+      maxTimestamp = new Date(maxDate).getTime();
+    } else {
+      // Get min and max timestamps from existing data
+      const timestamps = Object.values(data).map(d => d.timestamp);
+      minTimestamp = Math.min(...timestamps);
+      maxTimestamp = Math.max(...timestamps);
+    }
     
     const filledData = { ...data };
     const currentDate = new Date(minTimestamp);
@@ -104,8 +112,8 @@ export const generateMultiLineData = (eventList, timeRange) => {
     return filledData;
   };
   
-  // Fill in missing dates
-  const completeData = fillMissingDates(dataByDateAndType, timeRange);
+  // Fill in missing dates using actual date range
+  const completeData = fillMissingDates(dataByDateAndType, timeRange, dateMin, dateMax);
   
   // Create final event types list (top 5 + Other if it exists)
   const finalEventTypes = [...topEventTypes];

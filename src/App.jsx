@@ -6,7 +6,8 @@ import CalendarSelector from './components/CalendarSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import DateRangePicker from './components/DateRangePicker';
 import DateRangeDisplay from './components/DateRangeDisplay';
-import ChartTypeToggle from './components/ChartTypeToggle';
+import ComparisonSelector from './components/ComparisonSelector';
+import GroupBySelector from './components/GroupBySelector';
 import ComparisonStats from './components/ComparisonStats';
 import TimeSeriesChart from './components/TimeSeriesChart';
 import EventsBreakdown from './components/EventsBreakdown';
@@ -30,6 +31,7 @@ const App = () => {
     error,
     timeRange,
     customDateRange,
+    currentDateRange,
     setTimeRange,
     applyCustomDateRange,
     handleSignIn,
@@ -37,17 +39,20 @@ const App = () => {
   } = useGoogleCalendar();
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [chartStyle, setChartStyle] = useState('stacked');
-  const [chartType, setChartType] = useState('bar');
-  const [comparisonMode, setComparisonMode] = useState('previous');
+  const [comparisonMode, setComparisonMode] = useState('none'); // Start with comparison OFF (set to 'none')
+  const [showComparisonOnGraph, setShowComparisonOnGraph] = useState(false); // Toggle for showing comparison on graph
   const [comparisonStats, setComparisonStats] = useState(null);
+  const [comparisonEvents, setComparisonEvents] = useState([]);
+  const [comparisonDateRange, setComparisonDateRange] = useState(null);
   const [selectedEventType, setSelectedEventType] = useState(null);
   const [filteredStats, setFilteredStats] = useState(null);
+  const [filteredComparisonStats, setFilteredComparisonStats] = useState(null);
+  const [groupBy, setGroupBy] = useState('days'); // days, weeks, months
 
   // Fetch comparison data when comparison mode changes
   useEffect(() => {
     const fetchComparisonData = async () => {
-      if (!isSignedIn) {
+      if (comparisonMode === 'none' || !isSignedIn) {
         setComparisonStats(null);
         return;
       }
@@ -59,36 +64,49 @@ const App = () => {
       }
 
       try {
-        const comparisonEvents = await googleCalendarService.fetchEvents(
+        const compEvents = await googleCalendarService.fetchEvents(
           comparisonRange.timeMin,
           comparisonRange.timeMax,
           selectedCalendarId
         );
-        const compStats = calculateStats(comparisonEvents, timeRange);
+        setComparisonEvents(compEvents); // Store events for filtering
+        setComparisonDateRange(comparisonRange); // Store date range
+        const compStats = calculateStats(compEvents, timeRange, groupBy, comparisonRange.timeMin, comparisonRange.timeMax);
         setComparisonStats(compStats);
       } catch (err) {
         console.error('Failed to fetch comparison data:', err);
         setComparisonStats(null);
+        setComparisonEvents([]);
+        setComparisonDateRange(null);
       }
     };
 
     fetchComparisonData();
-  }, [comparisonMode, timeRange, isSignedIn, selectedCalendarId, customDateRange]);
+  }, [comparisonMode, timeRange, isSignedIn, selectedCalendarId, customDateRange, groupBy]);
 
   // Filter events and recalculate stats when event type is selected
   useEffect(() => {
     if (!events || events.length === 0) {
       setFilteredStats(null);
+      setFilteredComparisonStats(null);
       return;
     }
 
     if (!selectedEventType) {
       setFilteredStats(stats);
+      setFilteredComparisonStats(comparisonStats);
       return;
     }
 
+    // Filter current period
     const filtered = filterEventsByType(events, selectedEventType);
-    const newStats = calculateStats(filtered, timeRange);
+    const newStats = calculateStats(
+      filtered, 
+      timeRange, 
+      groupBy,
+      currentDateRange?.timeMin,
+      currentDateRange?.timeMax
+    );
     
     // Preserve the original color for the selected event
     const originalEventIndex = stats.eventTypes.indexOf(selectedEventType);
@@ -97,7 +115,28 @@ const App = () => {
     }
     
     setFilteredStats(newStats);
-  }, [selectedEventType, events, stats, timeRange]);
+
+    // Filter comparison period if it exists
+    if (comparisonEvents && comparisonEvents.length > 0) {
+      const filteredComparison = filterEventsByType(comparisonEvents, selectedEventType);
+      const newComparisonStats = calculateStats(
+        filteredComparison, 
+        timeRange, 
+        groupBy,
+        comparisonDateRange?.timeMin,
+        comparisonDateRange?.timeMax
+      );
+      
+      // Use same color as current period
+      if (originalEventIndex !== -1) {
+        newComparisonStats.eventColors = [stats.eventColors[originalEventIndex]];
+      }
+      
+      setFilteredComparisonStats(newComparisonStats);
+    } else {
+      setFilteredComparisonStats(comparisonStats);
+    }
+  }, [selectedEventType, events, stats, timeRange, groupBy, comparisonEvents, comparisonStats, currentDateRange, comparisonDateRange]);
 
   const handleCustomClick = () => {
     setShowDatePicker(true);
@@ -105,18 +144,22 @@ const App = () => {
 
   const handleApplyCustomRange = (dateRange) => {
     applyCustomDateRange(dateRange);
-    // Comparison will be hidden for custom ranges automatically
+    // Comparison will work for custom ranges too
   };
 
   const handleEventClick = (eventType) => {
     setSelectedEventType(eventType);
   };
 
+  // Determine if grouping selector should be shown
+  const showGrouping = timeRange === 'year' || timeRange === 'custom';
+
   if (!isSignedIn) {
     return <SignInScreen onSignIn={handleSignIn} />;
   }
 
   const displayStats = filteredStats || stats;
+  const displayComparisonStats = filteredComparisonStats || comparisonStats;
   const hasEvents = events && events.length > 0;
 
   return (
@@ -132,15 +175,36 @@ const App = () => {
             loading={loading}
           />
           
-          <TimeRangeSelector 
-            timeRange={timeRange} 
-            onChange={setTimeRange}
-          />
+          {/* Time Range and Group By in same section */}
+          <div className="mb-6">
+            <TimeRangeSelector 
+              timeRange={timeRange} 
+              onChange={setTimeRange}
+            />
+            
+            {/* Group By selector - only show for Year/Custom */}
+            {showGrouping && (
+              <GroupBySelector
+                groupBy={groupBy}
+                onChange={setGroupBy}
+                timeRange={timeRange}
+              />
+            )}
+          </div>
 
           <DateRangeDisplay 
             timeRange={timeRange}
             customDateRange={customDateRange}
             onCustomClick={handleCustomClick}
+          />
+
+          {/* Comparison Settings - moved to top */}
+          <ComparisonSelector
+            comparisonMode={comparisonMode}
+            onChange={setComparisonMode}
+            timeRange={timeRange}
+            showOnGraph={showComparisonOnGraph}
+            onShowOnGraphChange={setShowComparisonOnGraph}
           />
 
           <ErrorMessage message={error} />
@@ -153,44 +217,61 @@ const App = () => {
 
           {!loading && hasEvents && displayStats && (
             <>
-              {/* Events breakdown ABOVE chart */}
-              <EventsBreakdown 
-                eventsByType={stats.eventsByType}
-                totalHours={stats.totalHours}
-                onEventClick={handleEventClick}
-                selectedEvent={selectedEventType}
-                eventColors={stats.eventColors}
-                eventTypes={stats.eventTypes}
-              />
-              
+
+              {/* Events breakdown above chart - acts as interactive legend */}
+              <div className={`grid ${comparisonMode !== 'none' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-6 mb-8`}>
+                {/* Current Period Breakdown */}
+                <EventsBreakdown 
+                  eventsByType={displayStats.eventsByType}
+                  totalHours={displayStats.totalHours}
+                  onEventClick={handleEventClick}
+                  selectedEvent={selectedEventType}
+                  eventColors={displayStats.eventColors}
+                  eventTypes={displayStats.eventTypes}
+                  title="Current Period"
+                  avgHoursPerDay={displayStats.avgHoursPerDay}
+                  eventCount={displayStats.eventCount}
+                />
+
+                {/* Comparison Period Breakdown - use CURRENT period's colors for consistency */}
+                {comparisonMode !== 'none' && displayComparisonStats && (
+                  <EventsBreakdown 
+                    eventsByType={displayComparisonStats.eventsByType}
+                    totalHours={displayComparisonStats.totalHours}
+                    onEventClick={handleEventClick}
+                    selectedEvent={selectedEventType}
+                    eventColors={displayStats.eventColors}
+                    eventTypes={displayStats.eventTypes}
+                    title={`Comparison Period (${getComparisonLabel(timeRange, comparisonMode)})`}
+                    avgHoursPerDay={displayComparisonStats.avgHoursPerDay}
+                    eventCount={displayComparisonStats.eventCount}
+                    isComparison={true}
+                  />
+                )}
+              </div>
+
               {/* Chart */}
               <TimeSeriesChart 
-                data={displayStats.multiLineData}
+                currentData={displayStats.multiLineData}
+                comparisonData={displayComparisonStats?.multiLineData}
                 eventTypes={displayStats.eventTypes}
                 colors={displayStats.eventColors}
                 title={getGraphTitle(timeRange, customDateRange?.label)}
-                chartStyle={chartStyle}
-                chartType={chartType}
-              />
-
-              {/* Chart controls BELOW chart */}
-              <ChartTypeToggle 
-                chartStyle={chartStyle}
-                chartType={chartType}
-                onStyleChange={setChartStyle}
-                onTypeChange={setChartType}
-              />
-
-              {/* Comparison at the bottom */}
-              <ComparisonStats
-                currentStats={stats}
-                comparisonStats={comparisonStats}
+                showComparison={showComparisonOnGraph}
                 comparisonLabel={getComparisonLabel(timeRange, comparisonMode)}
-                comparisonMode={comparisonMode}
-                onComparisonChange={setComparisonMode}
-                timeRange={timeRange}
-                customDateRange={customDateRange}
               />
+
+              {/* Comparison Stats - change from previous */}
+              {comparisonMode !== 'none' && displayComparisonStats && (
+                <ComparisonStats
+                  currentStats={stats}
+                  comparisonStats={displayComparisonStats}
+                  comparisonLabel={getComparisonLabel(timeRange, comparisonMode)}
+                  comparisonMode={comparisonMode}
+                  timeRange={timeRange}
+                  customDateRange={customDateRange}
+                />
+              )}
             </>
           )}
         </div>
