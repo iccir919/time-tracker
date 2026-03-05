@@ -5,10 +5,6 @@ import Header from './components/Header';
 import CalendarSelector from './components/CalendarSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import DateRangePicker from './components/DateRangePicker';
-import DateRangeDisplay from './components/DateRangeDisplay';
-import ComparisonSelector from './components/ComparisonSelector';
-import GroupBySelector from './components/GroupBySelector';
-import ComparisonStats from './components/ComparisonStats';
 import TimeSeriesChart from './components/TimeSeriesChart';
 import EventsBreakdown from './components/EventsBreakdown';
 import EmptyState from './components/EmptyState';
@@ -48,6 +44,26 @@ const App = () => {
   const [filteredStats, setFilteredStats] = useState(null);
   const [filteredComparisonStats, setFilteredComparisonStats] = useState(null);
   const [groupBy, setGroupBy] = useState('days'); // days, weeks, months
+
+  // Auto-adjust groupBy when timeRange changes
+  useEffect(() => {
+    switch (timeRange) {
+      case 'week':
+        setGroupBy('days'); // Week only supports daily
+        break;
+      case 'month':
+        setGroupBy('days'); // Month defaults to daily (can switch to weekly)
+        break;
+      case 'year':
+        setGroupBy('weeks'); // Year defaults to weekly (can switch to monthly)
+        break;
+      case 'custom':
+        setGroupBy('days'); // Custom defaults to daily
+        break;
+      default:
+        setGroupBy('days');
+    }
+  }, [timeRange]);
 
   // Fetch comparison data when comparison mode changes
   useEffect(() => {
@@ -151,9 +167,6 @@ const App = () => {
     setSelectedEventType(eventType);
   };
 
-  // Determine if grouping selector should be shown
-  const showGrouping = timeRange === 'year' || timeRange === 'custom';
-
   if (!isSignedIn) {
     return <SignInScreen onSignIn={handleSignIn} />;
   }
@@ -164,63 +177,70 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 md:p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-          <Header onSignOut={handleSignOut} />
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-200">
+            <Header onSignOut={handleSignOut} />
+          </div>
 
-          <CalendarSelector
-            calendars={calendars}
-            selectedCalendarId={selectedCalendarId}
-            onChange={setSelectedCalendarId}
-            loading={loading}
-          />
-          
-          {/* Time Range and Group By in same section */}
-          <div className="mb-6">
+          {/* Controls Bar */}
+          <div className="bg-white border-b border-gray-200 p-6">
+            {/* Calendar Selector */}
+            <CalendarSelector
+              calendars={calendars}
+              selectedCalendarId={selectedCalendarId}
+              onChange={setSelectedCalendarId}
+              loading={loading}
+            />
+
+            {/* Time Range Selector */}
             <TimeRangeSelector 
               timeRange={timeRange} 
               onChange={setTimeRange}
+              onCustomClick={handleCustomClick}
             />
             
-            {/* Group By selector - only show for Year/Custom */}
-            {showGrouping && (
-              <GroupBySelector
-                groupBy={groupBy}
-                onChange={setGroupBy}
-                timeRange={timeRange}
-              />
+            {/* Current date range display */}
+            {currentDateRange && (
+              <p className="text-sm text-gray-600 text-center mt-2">
+                {new Date(currentDateRange.timeMin).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric' 
+                })} - {new Date(currentDateRange.timeMax).toLocaleDateString('en-US', { 
+                  month: 'short', 
+                  day: 'numeric',
+                  year: 'numeric' 
+                })}
+              </p>
             )}
           </div>
 
-          <DateRangeDisplay 
-            timeRange={timeRange}
-            customDateRange={customDateRange}
-            onCustomClick={handleCustomClick}
-          />
+          {/* Main Content Area */}
+          <div className="p-6 md:p-8">
+            <ErrorMessage message={error} />
 
-          {/* Comparison Settings - moved to top */}
-          <ComparisonSelector
-            comparisonMode={comparisonMode}
-            onChange={setComparisonMode}
-            timeRange={timeRange}
-            showOnGraph={showComparisonOnGraph}
-            onShowOnGraphChange={setShowComparisonOnGraph}
-          />
+            {loading && <LoadingSpinner />}
 
-          <ErrorMessage message={error} />
+            {!loading && !hasEvents && (
+              <EmptyState timeRange={timeRange} customDateRange={customDateRange} />
+            )}
 
-          {loading && <LoadingSpinner />}
+            {!loading && hasEvents && displayStats && (
+              <>
+                {/* Chart - Full Width */}
+                <TimeSeriesChart 
+                  currentData={displayStats.multiLineData}
+                  comparisonData={null}
+                  eventTypes={displayStats.eventTypes}
+                  colors={displayStats.eventColors}
+                  title={getGraphTitle(timeRange, customDateRange?.label)}
+                  showComparison={false}
+                  comparisonLabel=""
+                />
 
-          {!loading && !hasEvents && (
-            <EmptyState timeRange={timeRange} customDateRange={customDateRange} />
-          )}
-
-          {!loading && hasEvents && displayStats && (
-            <>
-
-              {/* Events breakdown above chart - acts as interactive legend */}
-              <div className={`grid ${comparisonMode !== 'none' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-6 mb-8`}>
-                {/* Current Period Breakdown */}
+                {/* Events Breakdown - Full Width */}
                 <EventsBreakdown 
                   eventsByType={displayStats.eventsByType}
                   totalHours={displayStats.totalHours}
@@ -228,52 +248,13 @@ const App = () => {
                   selectedEvent={selectedEventType}
                   eventColors={displayStats.eventColors}
                   eventTypes={displayStats.eventTypes}
-                  title="Current Period"
+                  title="Events Breakdown"
                   avgHoursPerDay={displayStats.avgHoursPerDay}
                   eventCount={displayStats.eventCount}
                 />
-
-                {/* Comparison Period Breakdown - use CURRENT period's colors for consistency */}
-                {comparisonMode !== 'none' && displayComparisonStats && (
-                  <EventsBreakdown 
-                    eventsByType={displayComparisonStats.eventsByType}
-                    totalHours={displayComparisonStats.totalHours}
-                    onEventClick={handleEventClick}
-                    selectedEvent={selectedEventType}
-                    eventColors={displayStats.eventColors}
-                    eventTypes={displayStats.eventTypes}
-                    title={`Comparison Period (${getComparisonLabel(timeRange, comparisonMode)})`}
-                    avgHoursPerDay={displayComparisonStats.avgHoursPerDay}
-                    eventCount={displayComparisonStats.eventCount}
-                    isComparison={true}
-                  />
-                )}
-              </div>
-
-              {/* Chart */}
-              <TimeSeriesChart 
-                currentData={displayStats.multiLineData}
-                comparisonData={displayComparisonStats?.multiLineData}
-                eventTypes={displayStats.eventTypes}
-                colors={displayStats.eventColors}
-                title={getGraphTitle(timeRange, customDateRange?.label)}
-                showComparison={showComparisonOnGraph}
-                comparisonLabel={getComparisonLabel(timeRange, comparisonMode)}
-              />
-
-              {/* Comparison Stats - change from previous */}
-              {comparisonMode !== 'none' && displayComparisonStats && (
-                <ComparisonStats
-                  currentStats={stats}
-                  comparisonStats={displayComparisonStats}
-                  comparisonLabel={getComparisonLabel(timeRange, comparisonMode)}
-                  comparisonMode={comparisonMode}
-                  timeRange={timeRange}
-                  customDateRange={customDateRange}
-                />
-              )}
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
