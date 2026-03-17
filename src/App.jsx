@@ -5,15 +5,14 @@ import Header from './components/Header';
 import CalendarSelector from './components/CalendarSelector';
 import TimeRangeSelector from './components/TimeRangeSelector';
 import DateRangePicker from './components/DateRangePicker';
+import GroupBySelector from './components/GroupBySelector';
 import TimeSeriesChart from './components/TimeSeriesChart';
 import EventsBreakdown from './components/EventsBreakdown';
 import EmptyState from './components/EmptyState';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import { getGraphTitle } from './utils/chartUtils';
-import { calculateStats } from './utils/statsUtils';
-import { getComparisonDateRange, getComparisonLabel, filterEventsByType } from './utils/comparisonUtils';
-import { googleCalendarService } from './utils/googleCalendarService';
+import { calculateStats, filterEventsByType } from './utils/statsUtils';
 
 const App = () => {
   const {
@@ -35,124 +34,66 @@ const App = () => {
   } = useGoogleCalendar();
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [comparisonMode, setComparisonMode] = useState('none'); // Start with comparison OFF (set to 'none')
-  const [showComparisonOnGraph, setShowComparisonOnGraph] = useState(false); // Toggle for showing comparison on graph
-  const [comparisonStats, setComparisonStats] = useState(null);
-  const [comparisonEvents, setComparisonEvents] = useState([]);
-  const [comparisonDateRange, setComparisonDateRange] = useState(null);
   const [selectedEventType, setSelectedEventType] = useState(null);
   const [filteredStats, setFilteredStats] = useState(null);
-  const [filteredComparisonStats, setFilteredComparisonStats] = useState(null);
   const [groupBy, setGroupBy] = useState('days'); // days, weeks, months
+  const [localStats, setLocalStats] = useState(null); // Override hook stats when groupBy changes
 
   // Auto-adjust groupBy when timeRange changes
   useEffect(() => {
     switch (timeRange) {
       case 'week':
-        setGroupBy('days'); // Week only supports daily
+        setGroupBy('days'); // Week: only daily
         break;
       case 'month':
-        setGroupBy('days'); // Month defaults to daily (can switch to weekly)
+        setGroupBy('days'); // Month: default to daily
         break;
       case 'year':
-        setGroupBy('weeks'); // Year defaults to weekly (can switch to monthly)
+        setGroupBy('days'); // Year: default to daily (can switch to week or month)
         break;
       case 'custom':
-        setGroupBy('days'); // Custom defaults to daily
+        setGroupBy('days'); // Custom: default to daily (can switch to week or month)
         break;
       default:
         setGroupBy('days');
     }
   }, [timeRange]);
 
-  // Fetch comparison data when comparison mode changes
+  // Recalculate stats when groupBy changes
   useEffect(() => {
-    const fetchComparisonData = async () => {
-      if (comparisonMode === 'none' || !isSignedIn) {
-        setComparisonStats(null);
-        return;
-      }
-
-      const comparisonRange = getComparisonDateRange(timeRange, comparisonMode, customDateRange);
-      if (!comparisonRange) {
-        setComparisonStats(null);
-        return;
-      }
-
-      try {
-        const compEvents = await googleCalendarService.fetchEvents(
-          comparisonRange.timeMin,
-          comparisonRange.timeMax,
-          selectedCalendarId
-        );
-        setComparisonEvents(compEvents); // Store events for filtering
-        setComparisonDateRange(comparisonRange); // Store date range
-        const compStats = calculateStats(compEvents, timeRange, groupBy, comparisonRange.timeMin, comparisonRange.timeMax);
-        setComparisonStats(compStats);
-      } catch (err) {
-        console.error('Failed to fetch comparison data:', err);
-        setComparisonStats(null);
-        setComparisonEvents([]);
-        setComparisonDateRange(null);
-      }
-    };
-
-    fetchComparisonData();
-  }, [comparisonMode, timeRange, isSignedIn, selectedCalendarId, customDateRange, groupBy]);
-
-  // Filter events and recalculate stats when event type is selected
-  useEffect(() => {
-    if (!events || events.length === 0) {
-      setFilteredStats(null);
-      setFilteredComparisonStats(null);
+    if (!events || events.length === 0 || !currentDateRange) {
+      setLocalStats(null);
       return;
     }
-
-    if (!selectedEventType) {
-      setFilteredStats(stats);
-      setFilteredComparisonStats(comparisonStats);
-      return;
-    }
-
-    // Filter current period
-    const filtered = filterEventsByType(events, selectedEventType);
-    const newStats = calculateStats(
-      filtered, 
-      timeRange, 
+    
+    const recalculatedStats = calculateStats(
+      events,
+      timeRange,
       groupBy,
-      currentDateRange?.timeMin,
-      currentDateRange?.timeMax
+      currentDateRange.timeMin,
+      currentDateRange.timeMax
     );
+    setLocalStats(recalculatedStats);
     
-    // Preserve the original color for the selected event
-    const originalEventIndex = stats.eventTypes.indexOf(selectedEventType);
-    if (originalEventIndex !== -1) {
-      newStats.eventColors = [stats.eventColors[originalEventIndex]];
-    }
-    
-    setFilteredStats(newStats);
-
-    // Filter comparison period if it exists
-    if (comparisonEvents && comparisonEvents.length > 0) {
-      const filteredComparison = filterEventsByType(comparisonEvents, selectedEventType);
-      const newComparisonStats = calculateStats(
-        filteredComparison, 
-        timeRange, 
+    // Also recalculate filtered stats if filtering is active
+    if (selectedEventType) {
+      const filtered = filterEventsByType(events, selectedEventType);
+      const newFilteredStats = calculateStats(
+        filtered,
+        timeRange,
         groupBy,
-        comparisonDateRange?.timeMin,
-        comparisonDateRange?.timeMax
+        currentDateRange.timeMin,
+        currentDateRange.timeMax
       );
-      
-      // Use same color as current period
+      const originalEventIndex = recalculatedStats.eventTypes.indexOf(selectedEventType);
       if (originalEventIndex !== -1) {
-        newComparisonStats.eventColors = [stats.eventColors[originalEventIndex]];
+        newFilteredStats.eventColors = [recalculatedStats.eventColors[originalEventIndex]];
       }
-      
-      setFilteredComparisonStats(newComparisonStats);
+      setFilteredStats(newFilteredStats);
     } else {
-      setFilteredComparisonStats(comparisonStats);
+      setFilteredStats(null);
     }
-  }, [selectedEventType, events, stats, timeRange, groupBy, comparisonEvents, comparisonStats, currentDateRange, comparisonDateRange]);
+  }, [groupBy, events, timeRange, currentDateRange, selectedEventType]);
 
   const handleCustomClick = () => {
     setShowDatePicker(true);
@@ -160,7 +101,6 @@ const App = () => {
 
   const handleApplyCustomRange = (dateRange) => {
     applyCustomDateRange(dateRange);
-    // Comparison will work for custom ranges too
   };
 
   const handleEventClick = (eventType) => {
@@ -171,8 +111,7 @@ const App = () => {
     return <SignInScreen onSignIn={handleSignIn} />;
   }
 
-  const displayStats = filteredStats || stats;
-  const displayComparisonStats = filteredComparisonStats || comparisonStats;
+  const displayStats = filteredStats || localStats || stats;
   const hasEvents = events && events.length > 0;
 
   return (
@@ -238,6 +177,13 @@ const App = () => {
                   title={getGraphTitle(timeRange, customDateRange?.label)}
                   showComparison={false}
                   comparisonLabel=""
+                />
+
+                {/* Group By - below chart */}
+                <GroupBySelector
+                  groupBy={groupBy}
+                  onChange={setGroupBy}
+                  timeRange={timeRange}
                 />
 
                 {/* Events Breakdown - Full Width */}
