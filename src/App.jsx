@@ -12,7 +12,7 @@ import EmptyState from './components/EmptyState';
 import LoadingSpinner from './components/LoadingSpinner';
 import ErrorMessage from './components/ErrorMessage';
 import { getGraphTitle } from './utils/chartUtils';
-import { calculateStats, filterEventsByType } from './utils/statsUtils';
+import { calculateStats } from './utils/statsUtils';
 
 const App = () => {
   const {
@@ -34,66 +34,35 @@ const App = () => {
   } = useGoogleCalendar();
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedEventType, setSelectedEventType] = useState(null);
-  const [filteredStats, setFilteredStats] = useState(null);
-  const [groupBy, setGroupBy] = useState('days'); // days, weeks, months
+  const [groupBy, setGroupBy] = useState('days'); // days, weeks, months, weekday
+  const [selectedWeekday, setSelectedWeekday] = useState(null); // 0-6 for Sun-Sat
   const [localStats, setLocalStats] = useState(null); // Override hook stats when groupBy changes
+  const [disabledEvents, setDisabledEvents] = useState(new Set()); // Event names hidden from the graph
 
   // Auto-adjust groupBy when timeRange changes
   useEffect(() => {
-    switch (timeRange) {
-      case 'week':
-        setGroupBy('days'); // Week: only daily
-        break;
-      case 'month':
-        setGroupBy('days'); // Month: default to daily
-        break;
-      case 'year':
-        setGroupBy('days'); // Year: default to daily (can switch to week or month)
-        break;
-      case 'custom':
-        setGroupBy('days'); // Custom: default to daily (can switch to week or month)
-        break;
-      default:
-        setGroupBy('days');
-    }
+    setGroupBy('days');
   }, [timeRange]);
 
-  // Recalculate stats when groupBy changes
+  // Recalculate stats when groupBy, weekday, or disabled events change
   useEffect(() => {
     if (!events || events.length === 0 || !currentDateRange) {
       setLocalStats(null);
       return;
     }
-    
-    const recalculatedStats = calculateStats(
-      events,
-      timeRange,
-      groupBy,
-      currentDateRange.timeMin,
-      currentDateRange.timeMax
-    );
-    setLocalStats(recalculatedStats);
-    
-    // Also recalculate filtered stats if filtering is active
-    if (selectedEventType) {
-      const filtered = filterEventsByType(events, selectedEventType);
-      const newFilteredStats = calculateStats(
-        filtered,
+
+    setLocalStats(
+      calculateStats(
+        events,
         timeRange,
         groupBy,
         currentDateRange.timeMin,
-        currentDateRange.timeMax
-      );
-      const originalEventIndex = recalculatedStats.eventTypes.indexOf(selectedEventType);
-      if (originalEventIndex !== -1) {
-        newFilteredStats.eventColors = [recalculatedStats.eventColors[originalEventIndex]];
-      }
-      setFilteredStats(newFilteredStats);
-    } else {
-      setFilteredStats(null);
-    }
-  }, [groupBy, events, timeRange, currentDateRange, selectedEventType]);
+        currentDateRange.timeMax,
+        selectedWeekday,
+        disabledEvents
+      )
+    );
+  }, [groupBy, selectedWeekday, events, timeRange, currentDateRange, disabledEvents]);
 
   const handleCustomClick = () => {
     setShowDatePicker(true);
@@ -103,15 +72,23 @@ const App = () => {
     applyCustomDateRange(dateRange);
   };
 
-  const handleEventClick = (eventType) => {
-    setSelectedEventType(eventType);
+  const handleToggleEventDisable = (eventName) => {
+    setDisabledEvents(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(eventName)) {
+        newSet.delete(eventName);
+      } else {
+        newSet.add(eventName);
+      }
+      return newSet;
+    });
   };
 
   if (!isSignedIn) {
     return <SignInScreen onSignIn={handleSignIn} />;
   }
 
-  const displayStats = filteredStats || localStats || stats;
+  const displayStats = localStats || stats;
   const hasEvents = events && events.length > 0;
 
   return (
@@ -134,23 +111,23 @@ const App = () => {
             />
 
             {/* Time Range Selector */}
-            <TimeRangeSelector 
-              timeRange={timeRange} 
+            <TimeRangeSelector
+              timeRange={timeRange}
               onChange={setTimeRange}
               onCustomClick={handleCustomClick}
             />
-            
+
             {/* Current date range display */}
             {currentDateRange && (
               <p className="text-sm text-gray-600 text-center mt-2">
-                {new Date(currentDateRange.timeMin).toLocaleDateString('en-US', { 
-                  month: 'short', 
+                {new Date(currentDateRange.timeMin).toLocaleDateString('en-US', {
+                  month: 'short',
                   day: 'numeric',
-                  year: 'numeric' 
-                })} - {new Date(currentDateRange.timeMax).toLocaleDateString('en-US', { 
-                  month: 'short', 
+                  year: 'numeric'
+                })} - {new Date(currentDateRange.timeMax).toLocaleDateString('en-US', {
+                  month: 'short',
                   day: 'numeric',
-                  year: 'numeric' 
+                  year: 'numeric'
                 })}
               </p>
             )}
@@ -169,7 +146,7 @@ const App = () => {
             {!loading && hasEvents && displayStats && (
               <>
                 {/* Chart - Full Width */}
-                <TimeSeriesChart 
+                <TimeSeriesChart
                   currentData={displayStats.multiLineData}
                   comparisonData={null}
                   eventTypes={displayStats.eventTypes}
@@ -184,19 +161,20 @@ const App = () => {
                   groupBy={groupBy}
                   onChange={setGroupBy}
                   timeRange={timeRange}
+                  selectedWeekday={selectedWeekday}
+                  onWeekdayChange={setSelectedWeekday}
                 />
 
                 {/* Events Breakdown - Full Width */}
-                <EventsBreakdown 
+                <EventsBreakdown
                   eventsByType={displayStats.eventsByType}
                   totalHours={displayStats.totalHours}
-                  onEventClick={handleEventClick}
-                  selectedEvent={selectedEventType}
-                  eventColors={displayStats.eventColors}
-                  eventTypes={displayStats.eventTypes}
+                  eventColorMap={displayStats.eventColorMap}
                   title="Events Breakdown"
                   avgHoursPerDay={displayStats.avgHoursPerDay}
                   eventCount={displayStats.eventCount}
+                  disabledEvents={disabledEvents}
+                  onToggleEventDisable={handleToggleEventDisable}
                 />
               </>
             )}

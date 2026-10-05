@@ -1,10 +1,30 @@
 // Generate time series data with separate lines for each event type (top 10 + Other)
-export const generateMultiLineData = (eventList, timeRange, dateMin = null, dateMax = null, groupBy = 'days') => {
+export const generateMultiLineData = (eventList, timeRange, dateMin = null, dateMax = null, groupBy = 'days', selectedWeekday = null, disabledEvents = new Set()) => {
+  // Filter events: exclude disabled event types
+  let filteredEvents = eventList.filter(event => {
+    if (disabledEvents.has(event.summary)) {
+      return false;
+    }
+    return true;
+  });
+
+  // If weekday mode, further filter events to only that weekday
+  if (groupBy === 'weekday' && selectedWeekday !== null && selectedWeekday !== undefined) {
+    filteredEvents = filteredEvents.filter(event => {
+      if (event.start.dateTime) {
+        const start = new Date(event.start.dateTime);
+        const eventDay = start.getDay();
+        return eventDay === selectedWeekday;
+      }
+      return false;
+    });
+  }
+
   const dataByDateAndType = {};
   const eventTypeTotals = {};
   
   // First pass: calculate totals for each event type to find top 10
-  eventList.forEach(event => {
+  filteredEvents.forEach(event => {
     if (event.start.dateTime && event.end.dateTime) {
       const start = new Date(event.start.dateTime);
       const end = new Date(event.end.dateTime);
@@ -22,7 +42,7 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
     .map(([name]) => name);
   
   // Second pass: aggregate data by date using groupBy parameter
-  eventList.forEach(event => {
+  filteredEvents.forEach(event => {
     if (event.start.dateTime && event.end.dateTime) {
       const start = new Date(event.start.dateTime);
       const end = new Date(event.end.dateTime);
@@ -35,7 +55,10 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
       let dateKey;
       
       // Group by the specified grouping level
-      if (groupBy === 'months') {
+      if (groupBy === 'weekday') {
+        // For weekday mode, show each individual occurrence with its full date
+        dateKey = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      } else if (groupBy === 'months') {
         // Group by month
         dateKey = start.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
       } else if (groupBy === 'weeks') {
@@ -62,7 +85,7 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
   });
   
   // Fill in missing days/weeks/months for continuous timeline
-  const fillMissingDates = (data, groupByParam, minDate = null, maxDate = null) => {
+  const fillMissingDates = (data, groupByParam, minDate = null, maxDate = null, weekdayToFill = null) => {
     if (Object.keys(data).length === 0 && !minDate && !maxDate) return data;
     
     let minTimestamp, maxTimestamp;
@@ -81,6 +104,24 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
     const filledData = { ...data };
     const currentDate = new Date(minTimestamp);
     const endDate = new Date(maxTimestamp);
+    
+    // For weekday mode, fill in all instances of that weekday
+    if (groupByParam === 'weekday' && weekdayToFill !== null && weekdayToFill !== undefined) {
+      // Find first occurrence of the weekday
+      while (currentDate <= endDate) {
+        if (currentDate.getDay() === weekdayToFill) {
+          const dateKey = currentDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          if (!filledData[dateKey]) {
+            filledData[dateKey] = {
+              date: dateKey,
+              timestamp: currentDate.getTime(),
+            };
+          }
+        }
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+      return filledData;
+    }
     
     // Determine increment based on groupBy
     let increment;
@@ -126,7 +167,7 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
   };
   
   // Fill in missing dates using actual date range and groupBy
-  const completeData = fillMissingDates(dataByDateAndType, groupBy, dateMin, dateMax);
+  const completeData = fillMissingDates(dataByDateAndType, groupBy, dateMin, dateMax, selectedWeekday);
   
   // Create final event types list (top 5 + Other if it exists)
   const finalEventTypes = [...topEventTypes];

@@ -36,7 +36,7 @@ const CalendarSelector = ({ calendars, selectedCalendarId, onChange, loading }) 
         >
           {calendars.map((calendar) => (
             <option key={calendar.id} value={calendar.id}>
-              {calendar.primary ? '⭐ ' : ''}{calendar.name}
+              {calendar.name}{calendar.primary ? ' (default)' : ''}
             </option>
           ))}
         </select>

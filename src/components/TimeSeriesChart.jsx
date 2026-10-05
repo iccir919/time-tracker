@@ -72,7 +72,7 @@ const CustomTooltip = ({ active, payload, label, showComparison }) => {
               if (index === 0) {
                 return (
                   <p key="total" className="text-sm font-bold text-gray-900 mb-2 pb-2 border-b border-gray-200">
-                    Total: {Math.round(total * 10) / 10}h
+                    Total: {total.toFixed(2)}h
                   </p>
                 );
               }
@@ -105,14 +105,8 @@ const TimeSeriesChart = ({ currentData, comparisonData, eventTypes, colors, titl
     return null;
   }
 
-  // Debug: Log the dates to see format
-  if (showComparison && comparisonData && currentData.length > 0) {
-    console.log('Current dates:', currentData.map(d => d.date));
-    console.log('Comparison dates:', comparisonData.map(d => d.date));
-  }
-
   // Merge current and comparison data for side-by-side bars
-  // Match by date string OR by index as fallback
+  // Use index matching since both periods cover the same duration (e.g., both are 7-day weeks)
   const mergedData = currentData.map((currentPoint, index) => {
     const merged = { date: currentPoint.date };
     
@@ -122,26 +116,10 @@ const TimeSeriesChart = ({ currentData, comparisonData, eventTypes, colors, titl
     });
     
     // Add comparison period data with 'comparison_' prefix if showing comparison
-    if (showComparison && comparisonData) {
-      // Try to match by date first
-      let matchingComparisonPoint = comparisonData.find(cp => cp.date === currentPoint.date);
-      
-      // Fallback to index matching if date doesn't match (different date ranges)
-      if (!matchingComparisonPoint && comparisonData[index]) {
-        matchingComparisonPoint = comparisonData[index];
-        console.log(`No date match for ${currentPoint.date}, using index ${index}: ${matchingComparisonPoint.date}`);
-      }
-      
-      if (matchingComparisonPoint) {
-        eventTypes.forEach(eventType => {
-          merged[`comparison_${eventType}`] = matchingComparisonPoint[eventType] || 0;
-        });
-      } else {
-        // No matching date in comparison - set to 0
-        eventTypes.forEach(eventType => {
-          merged[`comparison_${eventType}`] = 0;
-        });
-      }
+    if (showComparison && comparisonData && comparisonData[index]) {
+      eventTypes.forEach(eventType => {
+        merged[`comparison_${eventType}`] = comparisonData[index][eventType] || 0;
+      });
     }
     
     return merged;

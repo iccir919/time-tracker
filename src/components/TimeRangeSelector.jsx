@@ -2,9 +2,9 @@ import React from 'react';
 
 const TimeRangeSelector = ({ timeRange, onChange, onCustomClick }) => {
   const ranges = [
-    { value: 'week', label: 'Past Week' },
-    { value: 'month', label: 'Past Month' },
-    { value: 'year', label: 'Past Year' },
+    { value: 'week', label: 'Last 7 Days' },
+    { value: 'month', label: 'Last 30 Days' },
+    { value: 'year', label: 'Last 60 Days' },
     { value: 'custom', label: 'Custom Range' }
   ];
 

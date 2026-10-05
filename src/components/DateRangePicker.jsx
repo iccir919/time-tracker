@@ -34,6 +34,31 @@ const DateRangePicker = ({ onApply, onClose }) => {
     setEndDate(end.toISOString().split('T')[0]);
   };
 
+  const handleThisYear = () => {
+    const end = new Date();
+    const start = new Date(end.getFullYear(), 0, 1); // January 1st of current year
+    
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
+  const handleLastMonth = () => {
+    const today = new Date();
+    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+    
+    setStartDate(lastMonth.toISOString().split('T')[0]);
+    setEndDate(lastDayOfLastMonth.toISOString().split('T')[0]);
+  };
+
+  const handleThisMonth = () => {
+    const today = new Date();
+    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    setStartDate(firstOfMonth.toISOString().split('T')[0]);
+    setEndDate(today.toISOString().split('T')[0]);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
@@ -50,31 +75,55 @@ const DateRangePicker = ({ onApply, onClose }) => {
         {/* Quick Select Buttons */}
         <div className="mb-6">
           <p className="text-sm font-medium text-gray-700 mb-3">Quick Select</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleQuickSelect(7)}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              Last 7 days
-            </button>
-            <button
-              onClick={() => handleQuickSelect(14)}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              Last 14 days
-            </button>
-            <button
-              onClick={() => handleQuickSelect(30)}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              Last 30 days
-            </button>
-            <button
-              onClick={() => handleQuickSelect(90)}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
-            >
-              Last 90 days
-            </button>
+          
+          {/* Rolling Days */}
+          <div className="mb-3">
+            <p className="text-xs text-gray-500 mb-2">Rolling Days</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleQuickSelect(14)}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                Last 14 days
+              </button>
+              <button
+                onClick={() => handleQuickSelect(90)}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                Last 90 days
+              </button>
+              <button
+                onClick={() => handleQuickSelect(365)}
+                className="col-span-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                Last Year
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar Periods */}
+          <div>
+            <p className="text-xs text-gray-500 mb-2">Calendar Periods</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleThisMonth}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                This Month
+              </button>
+              <button
+                onClick={handleLastMonth}
+                className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                Last Month
+              </button>
+              <button
+                onClick={handleThisYear}
+                className="col-span-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
+              >
+                This Year (Jan 1 - Today)
+              </button>
+            </div>
           </div>
         </div>
 

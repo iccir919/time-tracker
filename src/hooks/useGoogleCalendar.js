@@ -6,13 +6,32 @@ import { calculateStats } from '../utils/statsUtils';
 export const useGoogleCalendar = () => {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [calendars, setCalendars] = useState([]);
-  const [selectedCalendarId, setSelectedCalendarId] = useState('primary');
+  const [selectedCalendarId, setSelectedCalendarIdState] = useState(() => {
+    // Load from localStorage or default to 'primary'
+    return localStorage.getItem('lastSelectedCalendarId') || 'primary';
+  });
+
+  // Wrapper to save to localStorage when calendar changes
+  const setSelectedCalendarId = (calendarId) => {
+    localStorage.setItem('lastSelectedCalendarId', calendarId);
+    setSelectedCalendarIdState(calendarId);
+  };
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [timeRange, setTimeRange] = useState('week');
-  const [customDateRange, setCustomDateRange] = useState(null);
+  const [timeRange, setTimeRange] = useState('custom');
+  const [customDateRange, setCustomDateRange] = useState(() => {
+    // Default to last 90 days
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 90);
+    return {
+      label: 'Last 90 Days',
+      timeMin: start.toISOString(),
+      timeMax: end.toISOString()
+    };
+  });
   const [currentDateRange, setCurrentDateRange] = useState(null); // Store the actual min/max dates
 
   // Initialize Google API on mount
@@ -50,12 +69,20 @@ export const useGoogleCalendar = () => {
       const calendarList = await googleCalendarService.fetchCalendarList();
       setCalendars(calendarList);
       
-      // Auto-select primary calendar by default
-      const primaryCalendar = calendarList.find(cal => cal.primary);
-      if (primaryCalendar) {
-        setSelectedCalendarId(primaryCalendar.id);
-      } else if (calendarList.length > 0) {
-        setSelectedCalendarId(calendarList[0].id);
+      // Keep the last selected calendar if it still exists,
+      // otherwise fall back to the primary (default) calendar
+      const savedId = localStorage.getItem('lastSelectedCalendarId');
+      const savedStillExists = savedId && calendarList.some(cal => cal.id === savedId);
+
+      if (savedStillExists) {
+        setSelectedCalendarIdState(savedId);
+      } else {
+        const primaryCalendar = calendarList.find(cal => cal.primary);
+        if (primaryCalendar) {
+          setSelectedCalendarIdState(primaryCalendar.id);
+        } else if (calendarList.length > 0) {
+          setSelectedCalendarIdState(calendarList[0].id);
+        }
       }
     } catch (err) {
       setError('Failed to fetch calendar list. Please try again.');
@@ -113,7 +140,6 @@ export const useGoogleCalendar = () => {
     googleCalendarService.signOut();
     setIsSignedIn(false);
     setCalendars([]);
-    setSelectedCalendarId('primary');
     setEvents([]);
     setStats(null);
   };
