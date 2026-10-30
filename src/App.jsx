@@ -199,6 +199,7 @@ const App = () => {
                   title={getGraphTitle(timeRange, customDateRange?.label)}
                   showComparison={false}
                   comparisonLabel=""
+                  totalLabel={groupBy === 'weekday' && selectedWeekday === 'all' ? 'Average' : 'Total'}
                 />
 
                 {/* Group By - below chart */}

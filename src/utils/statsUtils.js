@@ -5,7 +5,8 @@ import { generateMultiLineData, getColorForEventType } from './multiLineChartUti
 export const calculateStats = (eventList, timeRange, groupBy = 'days', dateMin = null, dateMax = null, selectedWeekday = null, disabledEvents = new Set()) => {
   // Filter by weekday if in weekday mode (applies to everything, enabled or not)
   let weekdayEvents = eventList;
-  if (groupBy === 'weekday' && selectedWeekday !== null && selectedWeekday !== undefined) {
+  // (selectedWeekday is 'all' when showing every weekday, which filters nothing)
+  if (groupBy === 'weekday' && Number.isInteger(selectedWeekday)) {
     weekdayEvents = eventList.filter(event => {
       if (event.start.dateTime) {
         const start = new Date(event.start.dateTime);

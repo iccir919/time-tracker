@@ -1,3 +1,25 @@
+const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0]; // Mon first, Sun last
+
+// How many of each weekday fall in the date range, e.g. { 0: 4, 1: 5, ... }
+const countWeekdaysInRange = (dateMin, dateMax) => {
+  const counts = { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
+  if (dateMin && dateMax) {
+    const day = new Date(dateMin);
+    day.setHours(0, 0, 0, 0);
+    const end = new Date(dateMax);
+    while (day <= end) {
+      counts[day.getDay()] += 1;
+      day.setDate(day.getDate() + 1);
+    }
+  }
+  // Never divide by zero
+  Object.keys(counts).forEach(key => {
+    counts[key] = Math.max(1, counts[key]);
+  });
+  return counts;
+};
+
 // 0 -> "12 AM", 9 -> "9 AM", 12 -> "12 PM", 15 -> "3 PM"
 const formatHourLabel = (hour) => {
   const display = hour % 12 === 0 ? 12 : hour % 12;
@@ -14,8 +36,11 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
     return true;
   });
 
-  // If weekday mode, further filter events to only that weekday
-  if (groupBy === 'weekday' && selectedWeekday !== null && selectedWeekday !== undefined) {
+  // "All" in weekday mode: show Mon to Sun as 7 bars with the average hours per weekday
+  const isAllWeekdays = groupBy === 'weekday' && selectedWeekday === 'all';
+
+  // If a single weekday is selected, further filter events to only that weekday
+  if (groupBy === 'weekday' && Number.isInteger(selectedWeekday)) {
     filteredEvents = filteredEvents.filter(event => {
       if (event.start.dateTime) {
         const start = new Date(event.start.dateTime);
@@ -28,6 +53,7 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
 
   const dataByDateAndType = {};
   const eventTypeTotals = {};
+  const weekdayCounts = isAllWeekdays ? countWeekdaysInRange(dateMin, dateMax) : null;
   
   // First pass: calculate totals for each event type to find top 10
   filteredEvents.forEach(event => {
@@ -47,6 +73,14 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
     .slice(0, 10)
     .map(([name]) => name);
   
+  // All weekdays mode: start with Mon to Sun so empty weekdays still show
+  if (isAllWeekdays) {
+    WEEKDAY_ORDER.forEach((dayNumber, index) => {
+      const label = WEEKDAY_SHORT[dayNumber];
+      dataByDateAndType[label] = { date: label, timestamp: index, weekdayNumber: dayNumber };
+    });
+  }
+
   // Time of day mode: start with all 24 hours so empty hours still show
   if (groupBy === 'hour') {
     for (let h = 0; h < 24; h++) {
@@ -65,6 +99,13 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
 
       // Determine if this is a top event type or goes into "Other"
       const categoryName = topEventTypes.includes(eventType) ? eventType : 'Other';
+
+      // All weekdays mode: add the event's hours to its weekday
+      if (isAllWeekdays) {
+        const bucket = dataByDateAndType[WEEKDAY_SHORT[start.getDay()]];
+        bucket[categoryName] = (bucket[categoryName] || 0) + durationHours;
+        return;
+      }
 
       // Time of day mode: spread the event across every hour it covers.
       // A 9:30 to 11:30 event adds 0.5h to 9 AM, 1h to 10 AM, 0.5h to 11 AM.
@@ -199,7 +240,7 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
   
   // Fill in missing dates using actual date range and groupBy
   // (Time of day mode already has all 24 hours, so there is nothing to fill)
-  const completeData = groupBy === 'hour'
+  const completeData = (groupBy === 'hour' || isAllWeekdays)
     ? dataByDateAndType
     : fillMissingDates(dataByDateAndType, groupBy, dateMin, dateMax, selectedWeekday);
   
@@ -217,9 +258,14 @@ export const generateMultiLineData = (eventList, timeRange, dateMin = null, date
       const result = { date: point.date };
       // Keep full precision, don't round here
       finalEventTypes.forEach(type => {
-        const value = point[type] || 0;
-        // Spread hours produce long decimals, so round them to 2 places
-        result[type] = groupBy === 'hour' ? Math.round(value * 100) / 100 : value;
+        let value = point[type] || 0;
+        // Average per weekday: divide by how many of that weekday are in the range
+        // (including ones with no events)
+        if (isAllWeekdays) {
+          value = value / weekdayCounts[point.weekdayNumber];
+        }
+        // Spread hours and averages produce long decimals, so round them to 2 places
+        result[type] = (groupBy === 'hour' || isAllWeekdays) ? Math.round(value * 100) / 100 : value;
       });
       return result;
     });

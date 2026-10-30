@@ -9,7 +9,7 @@ import {
   Bar
 } from 'recharts';
 
-const CustomTooltip = ({ active, payload, label, showComparison }) => {
+const CustomTooltip = ({ active, payload, label, showComparison, totalLabel = 'Total' }) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
@@ -72,7 +72,7 @@ const CustomTooltip = ({ active, payload, label, showComparison }) => {
               if (index === 0) {
                 return (
                   <p key="total" className="text-sm font-bold text-gray-900 mb-2 pb-2 border-b border-gray-200">
-                    Total: {total.toFixed(2)}h
+                    {totalLabel}: {total.toFixed(2)}h
                   </p>
                 );
               }
@@ -100,7 +100,7 @@ const CustomTooltip = ({ active, payload, label, showComparison }) => {
   return null;
 };
 
-const TimeSeriesChart = ({ currentData, comparisonData, eventTypes, colors, title, showComparison }) => {
+const TimeSeriesChart = ({ currentData, comparisonData, eventTypes, colors, title, showComparison, totalLabel = 'Total' }) => {
   if (!currentData || currentData.length === 0) {
     return null;
   }
@@ -153,7 +153,7 @@ const TimeSeriesChart = ({ currentData, comparisonData, eventTypes, colors, titl
               style: { fill: '#6b7280', fontSize: 12 }
             }}
           />
-          <Tooltip content={<CustomTooltip showComparison={showComparison} />} />
+          <Tooltip content={<CustomTooltip showComparison={showComparison} totalLabel={totalLabel} />} />
           
           {showComparison ? (
             // Side-by-side bars: current and comparison

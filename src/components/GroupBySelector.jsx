@@ -82,6 +82,7 @@ const GroupBySelector = ({ groupBy, onChange, timeRange, selectedWeekday, onWeek
   };
 
   const getWeekdayLabel = () => {
+    if (selectedWeekday === 'all') return 'Weekday: All';
     if (selectedWeekday === null || selectedWeekday === undefined) return 'Weekday';
     const day = weekdays.find(d => d.value === selectedWeekday);
     return day ? day.label : 'Weekday';
@@ -124,7 +125,25 @@ const GroupBySelector = ({ groupBy, onChange, timeRange, selectedWeekday, onWeek
               {day.label}
             </button>
           ))}
+
+          {/* "All" comes after Sat, with extra space on its left */}
+          <button
+            onClick={() => handleWeekdayClick('all')}
+            className={`ml-4 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              selectedWeekday === 'all'
+                ? 'bg-gray-900 text-white shadow-sm'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            All
+          </button>
         </div>
+      )}
+
+      {groupBy === 'weekday' && selectedWeekday === 'all' && (
+        <p className="text-xs text-gray-500">
+          Average hours per weekday across the selected range
+        </p>
       )}
     </div>
   );
