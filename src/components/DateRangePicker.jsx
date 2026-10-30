@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
+import { getRollingRange } from '../utils/dateUtils';
 
 const DateRangePicker = ({ onApply, onClose }) => {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  // Set when a "Rolling Days" quick select is used, so the range can stay rolling when remembered
+  const [rollingDays, setRollingDays] = useState(null);
 
   const handleApply = () => {
+    if (rollingDays) {
+      onApply(getRollingRange(rollingDays));
+      onClose();
+      return;
+    }
+
     if (startDate && endDate) {
       // Create dates in local timezone at start of day
       const start = new Date(startDate + 'T00:00:00');
@@ -32,9 +41,11 @@ const DateRangePicker = ({ onApply, onClose }) => {
     
     setStartDate(start.toISOString().split('T')[0]);
     setEndDate(end.toISOString().split('T')[0]);
+    setRollingDays(days);
   };
 
   const handleThisYear = () => {
+    setRollingDays(null);
     const end = new Date();
     const start = new Date(end.getFullYear(), 0, 1); // January 1st of current year
     
@@ -43,6 +54,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
   };
 
   const handleLastMonth = () => {
+    setRollingDays(null);
     const today = new Date();
     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -52,6 +64,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
   };
 
   const handleThisMonth = () => {
+    setRollingDays(null);
     const today = new Date();
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
@@ -136,7 +149,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
             <input
               type="date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => { setStartDate(e.target.value); setRollingDays(null); }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>
@@ -147,7 +160,7 @@ const DateRangePicker = ({ onApply, onClose }) => {
             <input
               type="date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => { setEndDate(e.target.value); setRollingDays(null); }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-900 focus:border-transparent"
             />
           </div>

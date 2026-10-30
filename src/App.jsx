@@ -37,7 +37,48 @@ const App = () => {
   const [groupBy, setGroupBy] = useState('days'); // days, weeks, months, weekday
   const [selectedWeekday, setSelectedWeekday] = useState(null); // 0-6 for Sun-Sat
   const [localStats, setLocalStats] = useState(null); // Override hook stats when groupBy changes
-  const [disabledEvents, setDisabledEvents] = useState(new Set()); // Event names hidden from the graph
+  // Event names hidden from the graph, remembered between visits
+  const [disabledEvents, setDisabledEvents] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('disabledEvents'));
+      if (Array.isArray(saved)) return new Set(saved);
+    } catch (e) { /* ignore */ }
+    return new Set();
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('disabledEvents', JSON.stringify([...disabledEvents]));
+    } catch (e) { /* ignore */ }
+  }, [disabledEvents]);
+
+  // Colors the user picked, by event name, remembered between visits
+  const [customColors, setCustomColors] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('customEventColors'));
+      if (saved && typeof saved === 'object' && !Array.isArray(saved)) return saved;
+    } catch (e) { /* ignore */ }
+    return {};
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('customEventColors', JSON.stringify(customColors));
+    } catch (e) { /* ignore */ }
+  }, [customColors]);
+
+  // color = null resets the event back to its default color
+  const handleColorChange = (eventName, color) => {
+    setCustomColors(prev => {
+      const next = { ...prev };
+      if (color) {
+        next[eventName] = color;
+      } else {
+        delete next[eventName];
+      }
+      return next;
+    });
+  };
 
   // Auto-adjust groupBy when timeRange changes
   useEffect(() => {
@@ -89,6 +130,10 @@ const App = () => {
   }
 
   const displayStats = localStats || stats;
+  // Chart colors: the user's pick wins, otherwise the default color
+  const chartColors = displayStats
+    ? displayStats.eventTypes.map((type, index) => customColors[type] || displayStats.eventColors[index])
+    : [];
   const hasEvents = events && events.length > 0;
 
   return (
@@ -150,7 +195,7 @@ const App = () => {
                   currentData={displayStats.multiLineData}
                   comparisonData={null}
                   eventTypes={displayStats.eventTypes}
-                  colors={displayStats.eventColors}
+                  colors={chartColors}
                   title={getGraphTitle(timeRange, customDateRange?.label)}
                   showComparison={false}
                   comparisonLabel=""
@@ -175,6 +220,8 @@ const App = () => {
                   eventCount={displayStats.eventCount}
                   disabledEvents={disabledEvents}
                   onToggleEventDisable={handleToggleEventDisable}
+                  customColors={customColors}
+                  onColorChange={handleColorChange}
                 />
               </>
             )}

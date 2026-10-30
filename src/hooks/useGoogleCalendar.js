@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { googleCalendarService } from '../utils/googleCalendarService';
-import { getDateRange } from '../utils/dateUtils';
+import { getDateRange, getRollingRange } from '../utils/dateUtils';
 import { calculateStats } from '../utils/statsUtils';
 
 export const useGoogleCalendar = () => {
@@ -20,19 +20,33 @@ export const useGoogleCalendar = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [timeRange, setTimeRange] = useState('custom');
+  const [timeRange, setTimeRange] = useState(() => {
+    // Load the last used range, default to Last 30 Days
+    try {
+      const saved = localStorage.getItem('lastTimeRange');
+      if (['week', 'month', 'year', 'custom'].includes(saved)) return saved;
+    } catch (e) { /* ignore */ }
+    return 'month';
+  });
   const [customDateRange, setCustomDateRange] = useState(() => {
-    // Default to last 90 days
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 90);
-    return {
-      label: 'Last 90 Days',
-      timeMin: start.toISOString(),
-      timeMax: end.toISOString()
-    };
+    // Load the last custom range. Rolling ranges (like "Last 90 days") are
+    // recalculated so they end today instead of on the day they were saved.
+    try {
+      const saved = JSON.parse(localStorage.getItem('lastCustomDateRange'));
+      if (saved && saved.rollingDays) return getRollingRange(saved.rollingDays);
+      if (saved && saved.timeMin && saved.timeMax) return saved;
+    } catch (e) { /* ignore */ }
+    return getRollingRange(30);
   });
   const [currentDateRange, setCurrentDateRange] = useState(null); // Store the actual min/max dates
+
+  // Remember the date range choice for next visit
+  useEffect(() => {
+    try {
+      localStorage.setItem('lastTimeRange', timeRange);
+      localStorage.setItem('lastCustomDateRange', JSON.stringify(customDateRange));
+    } catch (e) { /* ignore */ }
+  }, [timeRange, customDateRange]);
 
   // Initialize Google API on mount
   useEffect(() => {

@@ -7,26 +7,29 @@ const GroupBySelector = ({ groupBy, onChange, timeRange, selectedWeekday, onWeek
   const getGroupingOptions = () => {
     switch (timeRange) {
       case 'week':
-        // Week: Just Day (only 7 days, not enough for meaningful grouping)
+        // Week: Day or Time of day (only 7 days, not enough for week/month grouping)
         return [
-          { value: 'days', label: 'Day' }
+          { value: 'days', label: 'Day' },
+          { value: 'hour', label: 'Time of Day' }
         ];
       
       case 'month':
-        // Month: Day, Week, or Weekday
+        // Month: Day, Week, Weekday, or Time of day
         return [
           { value: 'days', label: 'Day' },
           { value: 'weeks', label: 'Week' },
-          { value: 'weekday', label: 'Weekday' }
+          { value: 'weekday', label: 'Weekday' },
+          { value: 'hour', label: 'Time of Day' }
         ];
       
       case 'year':
-        // Year: Day, Week, Month, or Weekday
+        // Year: Day, Week, Month, Weekday, or Time of day
         return [
           { value: 'days', label: 'Day' },
           { value: 'weeks', label: 'Week' },
           { value: 'months', label: 'Month' },
-          { value: 'weekday', label: 'Weekday' }
+          { value: 'weekday', label: 'Weekday' },
+          { value: 'hour', label: 'Time of Day' }
         ];
       
       case 'custom':
@@ -35,7 +38,8 @@ const GroupBySelector = ({ groupBy, onChange, timeRange, selectedWeekday, onWeek
           { value: 'days', label: 'Day' },
           { value: 'weeks', label: 'Week' },
           { value: 'months', label: 'Month' },
-          { value: 'weekday', label: 'Weekday' }
+          { value: 'weekday', label: 'Weekday' },
+          { value: 'hour', label: 'Time of Day' }
         ];
       
       default:
@@ -74,7 +78,6 @@ const GroupBySelector = ({ groupBy, onChange, timeRange, selectedWeekday, onWeek
   };
 
   const handleWeekdayClick = (day) => {
-    console.log('Weekday clicked:', day);
     onWeekdayChange(day);
   };
 

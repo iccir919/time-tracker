@@ -35,6 +35,25 @@ export const getDateRange = (range) => {
   };
 };
 
+// Rolling range ending today, e.g. the last 90 days.
+// Remembers `rollingDays` so a saved range can be recalculated fresh on a later visit.
+export const getRollingRange = (days) => {
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const fmt = { month: 'short', day: 'numeric', year: 'numeric' };
+  return {
+    label: `${start.toLocaleDateString('en-US', fmt)} - ${end.toLocaleDateString('en-US', fmt)}`,
+    timeMin: start.toISOString(),
+    timeMax: end.toISOString(),
+    rollingDays: days
+  };
+};
+
 export const formatTimeRange = (range) => {
   switch(range) {
     case 'week':
